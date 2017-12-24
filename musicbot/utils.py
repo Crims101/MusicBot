@@ -86,8 +86,9 @@ def fixg(x, dp=2):
 
 
 def ftimedelta(td):
-    p1, p2 = str(td).rsplit(':', 1)
-    return ':'.join([p1, str(int(float(p2)))])
+    p1, p2 = str(td).rsplit(':', 1) #zfill(2) adds a leading zero to a single digit number
+    p1 = p1.split(':',1)[0].zfill(2)+':'+p1.split(':',1)[1] #add leading zero to hours
+    return ':'.join([p1, str(int(float(p2))).zfill(2)]) #convert second as float to int and add leading zero if single digit
 
 
 def safe_print(content, *, end='\n', flush=True):
