@@ -1,6 +1,7 @@
 .idea/
 *.pyc
 ~*/
+.vscode/
 
 audio_cache/
 dectalk/
@@ -10,3 +11,10 @@ logs/
 data/
 config/options.ini
 config/permissions.ini
+<<<<<<< HEAD
+=======
+config/autoplaylist.txt
+config/autoplaylist_removed.txt
+config/whitelist.txt
+config/blacklist.txt
+>>>>>>> upstream/master
