@@ -2213,6 +2213,45 @@ class MusicBot(discord.Client):
                 self.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
             )
 
+    async def cmd_move(self, user_mentions, message, author, permissions, channel, player, leftover_args):
+        """
+        Usage:
+            {command_prefix}move [# from] [# to]
+
+        Moves song at first index to the second index. You can use 0 for last song or negative indexes for songs before the last one.
+        """
+        if not len(leftover_args)>=2:
+                # noinspection PyUnresolvedReferences
+                raise exceptions.CommandError( 
+                    self.str.get('cmd-move-noquery', "Please give two indexes to swap."), expire_in=20
+                )  
+        index_from = leftover_args[0]
+        index_to = leftover_args[1]     
+            
+        if not player.playlist.entries:
+            raise exceptions.CommandError(self.str.get('cmd-move-none', "There's nothing to move!"), expire_in=20)
+
+        try:
+            index_from = int(index_from)
+        except (TypeError, ValueError):
+            raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+        
+        try:
+            index_to = int(index_to)
+        except (TypeError, ValueError):
+            raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+
+        if index_from > len(player.playlist.entries) or index_to > len(player.playlist.entries):
+            raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+
+        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
+            entry = player.playlist.swap_entries(index_from, index_to)
+            return Response(self.str.get('cmd-move-reply-noauthor', "Moved entry `{0}`").format(entry.title).strip())
+        else:
+            raise exceptions.PermissionsError(
+                self.str.get('cmd-move-noperms', "You do not have the valid permissions to move that entry, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
+            )
+
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel, param=''):
         """
         Usage:
