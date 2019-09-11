@@ -2106,6 +2106,10 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
 
         if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
+            while index_from < 1 and len(player.playlist) > 0:
+                index_from += len(player.playlist)
+            while index_to < 1 and len(player.playlist) > 0:
+                index_to += len(player.playlist)
             entry = player.playlist.swap_entries(index_from, index_to)
             return Response(self.str.get('cmd-move-reply-noauthor', "Moved entry `{0}`").format(entry.title).strip())
         else:
