@@ -27,7 +27,7 @@ class PermissionsDefaults:
     AllowPlaylists = True
     InstaSkip = False
     Remove = False
-    SkipWhenAbsent = True
+    SkipWhenAbsent = False
     BypassKaraokeMode = False
 
     Extractors = "generic youtube youtube:playlist"

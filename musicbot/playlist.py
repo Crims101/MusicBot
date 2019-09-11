@@ -47,6 +47,14 @@ class Playlist(EventEmitter, Serializable):
         entry = self.entries[0]
         self.entries.rotate(index)
         return entry
+		
+    def swap_entries(self, index_from, index_to):
+        self.entries.rotate(1-index_from)
+        entry_from = self.entries.popleft()
+        self.entries.rotate(index_from-index_to)
+        self.entries.appendleft(entry_from)
+        self.entries.rotate(index_to-1)		
+        return entry_from
         
     def delete_entry_at_index(self, index):
         self.entries.rotate(-index)

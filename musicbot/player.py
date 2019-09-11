@@ -16,7 +16,7 @@ from collections import deque
 from shutil import get_terminal_size
 from websockets.exceptions import InvalidState
 
-from .utils import avg, _func_
+from .utils import avg, _func_, format_time_ffmpeg
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning
@@ -136,6 +136,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
         self.playlist.on('entry-added', self.on_entry_added)
 
+
     @property
     def volume(self):
         return self._volume
@@ -154,6 +155,16 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def skip(self):
         self._kill_current_player()
+        
+    def goto_seconds(self, secs):
+        if (not self.current_entry) or secs >= self.current_entry.duration:
+            return False
+
+        c_entry = self.current_entry
+        c_entry.set_start(secs)
+        self.play_entry(c_entry)
+        return True
+
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
@@ -195,6 +206,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self.playlist.clear()
         self._events.clear()
         self._kill_current_player()
+
 
     def _playback_finished(self, error=None):
         entry = self._current_entry
@@ -323,6 +335,7 @@ class MusicPlayer(EventEmitter, Serializable):
                 stderr_thread.start()
 
                 self.emit('play', player=self, entry=entry)
+
 
     def __json__(self):
         return self._enclose_json({

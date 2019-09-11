@@ -32,6 +32,18 @@ def write_file(filename, contents):
             f.write(str(item))
             f.write('\n')
 
+def format_time_ffmpeg(s):
+    total_msec = s * 1000
+    total_seconds = s
+    total_minutes = s / 60
+    total_hours = s / 3600
+    msec = int(total_msec % 1000)
+    sec = int(total_seconds % 60 - (msec / 3600000))
+    mins = int(total_minutes % 60 - (sec / 3600) - (msec / 3600000))
+    hours = int(total_hours - (mins / 60) - (sec / 3600) - (msec / 3600000))
+
+    return "{:02d}:{:02d}:{:02d}".format(hours, mins, sec)
+
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
     Split up a large string or list of strings into chunks for sending to discord.
@@ -80,8 +92,9 @@ def fixg(x, dp=2):
 
 
 def ftimedelta(td):
-    p1, p2 = str(td).rsplit(':', 1)
-    return ':'.join([p1, '{:02d}'.format(int(float(p2)))])
+    p1, p2 = str(td).rsplit(':', 1) #zfill(2) adds a leading zero to a single digit number
+    p1 = p1.split(':',1)[0].zfill(2)+':'+p1.split(':',1)[1] #add leading zero to hours
+    return ':'.join([p1, str(int(float(p2))).zfill(2)]) #convert second as float to int and add leading zero if single digit
 
 
 def safe_print(content, *, end='\n', flush=True):

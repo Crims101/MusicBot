@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 log = logging.getLogger(__name__)
 
 ytdl_format_options = {
-    'format': 'bestaudio/best',
+    'format': 'best',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,

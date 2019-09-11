@@ -1,4 +1,5 @@
 @ECHO off
+TITLE SymmetraBot
 
 CHCP 65001 > NUL
 CD /d "%~dp0"

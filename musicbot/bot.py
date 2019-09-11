@@ -83,6 +83,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.greetings = load_file(self.config.greetings_file)
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
@@ -298,6 +299,12 @@ class MusicBot(discord.Client):
 
                     if player.is_stopped:
                         player.play()
+                    if len(player.playlist.entries)==0 and not player.current_entry:
+                        try:
+                            greeting_url=random.choice(self.greetings)
+                            await player.playlist.add_entry(greeting_url, channel=None, author=None)
+                        except exceptions.ExtractionError as e:
+                            print("Error adding song from greetings:", e)
 
                     if self.config.auto_playlist:
                         if self.config.auto_pause:
@@ -314,6 +321,7 @@ class MusicBot(discord.Client):
 
             else:
                 log.warning("Invalid channel thing: {}".format(channel))
+                
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
@@ -1169,7 +1177,61 @@ class MusicBot(discord.Client):
         if not self.is_all:
             desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
-        return Response(desc, reply=True, delete_after=60)
+            return Response(desc, reply=True, delete_after=60)
+            
+    async def cmd_autoplay(self, player, command=None):
+        """
+        Usage:
+            {command_prefix}autoplay
+            {command_prefix}autoplay on
+            {command_prefix}autoplay off
+
+        Turns autoplaylist on and off, shows current status.
+        """
+        if command == "on":
+            self.config.auto_playlist = True
+            await self.on_player_finished_playing(player)
+            return Response("Turning autoplay on.",delete_after=20)
+        if command == "off":
+            self.config.auto_playlist = False
+            return Response("Turning autoplay off.",delete_after=20)
+        else:
+            return Response("Autoplay is currently "+("on." if self.config.auto_playlist else "off."),delete_after=20)
+            
+    async def cmd_skipto(self, player, timestamp):
+        """
+        Usage:
+            {command_prefix}skipto <timestamp>
+
+        Go to the given timestamp in the format of: (minutes:seconds)
+        """
+
+        parts = timestamp.split(":")
+        if len(parts) < 1:  # Shouldn't occur, but who knows?
+            return Response("Please provide a valid timestamp", delete_after=20)
+
+        # seconds, minutes, hours, days
+        values = (1, 60, 60 * 60, 60 * 60 * 24)
+
+        secs = 0
+        for i in range(len(parts)):
+            try:
+                v = int(parts[i])
+            except:
+                continue
+
+            j = len(parts) - i - 1
+            if j >= len(values):  # If I don't have a conversion from this to seconds
+                continue
+
+            secs += v * values[j]
+
+        if player.current_entry is None:
+            return Response("Nothing playing!", delete_after=20)
+
+        if not player.goto_seconds(secs):
+            return Response("Timestamp exceeds song duration!", delete_after=20)
+
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
@@ -1928,9 +1990,17 @@ class MusicBot(discord.Client):
 
             if player.is_stopped:
                 player.play()
-
             if self.config.auto_playlist:
                 await self.on_player_finished_playing(player)
+
+        if player.is_stopped:
+            if len(player.playlist.entries)==0 and not player.current_entry:
+                try:
+                    greeting_url=random.choice(self.greetings)
+                    await player.playlist.add_entry(greeting_url, channel=None, author=None)
+                except exceptions.ExtractionError as e:
+                    print("Error adding song from greetings:", e)
+            player.play()
 
         log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
 
@@ -2051,6 +2121,49 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.PermissionsError(
                 self.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
+            )
+
+    async def cmd_move(self, user_mentions, message, author, permissions, channel, player, leftover_args):
+        """
+        Usage:
+            {command_prefix}move [# from] [# to]
+
+        Moves song at first index to the second index. You can use 0 for last song or negative indexes for songs before the last one.
+        """
+        if not len(leftover_args)>=2:
+                # noinspection PyUnresolvedReferences
+                raise exceptions.CommandError( 
+                    self.str.get('cmd-move-noquery', "Please give two indexes to swap."), expire_in=20
+                )  
+        index_from = leftover_args[0]
+        index_to = leftover_args[1]     
+            
+        if not player.playlist.entries:
+            raise exceptions.CommandError(self.str.get('cmd-move-none', "There's nothing to move!"), expire_in=20)
+
+        try:
+            index_from = int(index_from)
+        except (TypeError, ValueError):
+            raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+        
+        try:
+            index_to = int(index_to)
+        except (TypeError, ValueError):
+            raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+
+        if index_from > len(player.playlist.entries) or index_to > len(player.playlist.entries):
+            raise exceptions.CommandError(self.str.get('cmd-move-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+
+        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
+            while index_from < 1 and len(player.playlist) > 0:
+                index_from += len(player.playlist)
+            while index_to < 1 and len(player.playlist) > 0:
+                index_to += len(player.playlist)
+            entry = player.playlist.swap_entries(index_from, index_to)
+            return Response(self.str.get('cmd-move-reply-noauthor', "Moved entry `{0}`").format(entry.title).strip())
+        else:
+            raise exceptions.PermissionsError(
+                self.str.get('cmd-move-noperms', "You do not have the valid permissions to move that entry, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
             )
 
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel, param=''):
